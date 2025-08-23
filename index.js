@@ -55,8 +55,10 @@
 import mqtt from "mqtt";
 import express from "express";
 import { WebSocketServer } from "ws";
+import { configDotenv } from "dotenv";
 
-process.loadEnvFile()
+
+configDotenv()
 
 const port = process.env.PORT
 const broker = process.env.BROKER
