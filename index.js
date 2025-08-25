@@ -113,6 +113,8 @@ const broker = process.env.BROKER;
 const username = process.env.USER_NAME;
 const password = process.env.PASSWORD;
 const PURIFIER_TOPIC = "purifier/control"; // purifier device should subscribe here
+const PURIFIER_STATE_TOPIC = "purifier/state";
+const SENSOR_TOPIC = "test/topic"
 
 
 const app = express();
@@ -169,20 +171,32 @@ let activeClients = 0;
 
 function connectMqtt() {
   mqttClient = mqtt.connect(broker, { username, password });
+
   mqttClient.on("connect", () => {
-    console.log("Connected to HiveMQ");
-    mqttClient.subscribe("test/topic");
+    console.log("✅ Connected to HiveMQ");
+
+    // Subscribe to multiple topics with error handling
+    const topics = [SENSOR_TOPIC, PURIFIER_TOPIC, PURIFIER_STATE_TOPIC];
+    mqttClient.subscribe(topics, (err, granted) => {
+      if (err) {
+        console.error("❌ Failed to subscribe:", err);
+      } else {
+        console.log("✅ Subscribed to topics:", granted.map(g => g.topic).join(", "));
+      }
+    });
   });
 
   mqttClient.on("message", (topic, message) => {
     console.log(`> MQTT [${topic}]: ${message}`);
+    // Send messages to all connected WebSocket clients
     wss.clients.forEach((client) => {
       if (client.readyState === 1) {
-        client.send(message.toString());
+        client.send(JSON.stringify({ topic, message: message.toString() }));
       }
     });
   });
 }
+
 
 wss.on("connection", (ws) => {
   activeClients++;
