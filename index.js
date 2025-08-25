@@ -117,6 +117,8 @@ const PURIFIER_TOPIC = "purifier/control"; // purifier device should subscribe h
 
 const app = express();
 
+// Middleware
+app.use(express.json());
 
 // Health check route
 app.get("/status", (req, res) => {
