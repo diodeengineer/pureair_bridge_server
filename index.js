@@ -112,6 +112,8 @@ const port = process.env.PORT || 3000;
 const broker = process.env.BROKER;
 const username = process.env.USER_NAME;
 const password = process.env.PASSWORD;
+const PURIFIER_TOPIC = "purifier/control"; // purifier device should subscribe here
+
 
 const app = express();
 
@@ -132,6 +134,28 @@ app.get("/", (req,res)=>{
 })
 
 
+
+// Purifier ON
+app.post("/purifier/on", (req, res) => {
+  if (!mqttClient || !mqttClient.connected) {
+    return res.status(500).json({ error: "MQTT not connected" });
+  }
+  mqttClient.publish(PURIFIER_TOPIC, "ON"); // publish command
+  res.json({ status: "ok", message: "Purifier ON command sent" });
+});
+
+
+// Purifier OFF
+app.post("/purifier/off", (req, res) => {
+  if (!mqttClient || !mqttClient.connected) {
+    return res.status(500).json({ error: "MQTT not connected" });
+  }
+  mqttClient.publish(PURIFIER_TOPIC, "OFF"); // publish command
+  res.json({ status: "ok", message: "Purifier OFF command sent" });
+});
+
+
+
 const server = app.listen(port, () => {
   console.log(`🚀 Bridge server running on http://localhost:${port}`);
 });
@@ -144,12 +168,12 @@ let activeClients = 0;
 function connectMqtt() {
   mqttClient = mqtt.connect(broker, { username, password });
   mqttClient.on("connect", () => {
-    console.log("✅ Connected to HiveMQ");
+    console.log("Connected to HiveMQ");
     mqttClient.subscribe("test/topic");
   });
 
   mqttClient.on("message", (topic, message) => {
-    console.log(`📥 MQTT [${topic}]: ${message}`);
+    console.log(`> MQTT [${topic}]: ${message}`);
     wss.clients.forEach((client) => {
       if (client.readyState === 1) {
         client.send(message.toString());
@@ -160,7 +184,7 @@ function connectMqtt() {
 
 wss.on("connection", (ws) => {
   activeClients++;
-  console.log(`📡 Mobile connected (${activeClients} total)`);
+  console.log(`^ Mobile connected (${activeClients} total)`);
 
   if (!mqttClient) {
     connectMqtt();
@@ -168,7 +192,7 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     activeClients--;
-    console.log(`❌ Mobile disconnected (${activeClients} left)`);
+    console.log(`x Mobile disconnected (${activeClients} left)`);
 
     if (activeClients === 0 && mqttClient) {
       console.log("No clients left → disconnecting from MQTT...");
